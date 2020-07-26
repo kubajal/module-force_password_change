@@ -14,39 +14,20 @@ class DBAccessLayer
     {
         return 'force_change_password';
     }
-
-    public static function setChangePasswordChangeFlagForUser($account_id, $flag)
+    
+    public static function setPasswordChangeFlagForUser($account_id, $flag)
     {
-        $query_string = "
-        SELECT client_field_id
-        FROM {PREFIX}module_extended_client_fields
-        WHERE field_identifier = '" . DBAccessLayer::getChangePasswordFlagDbColumnName() . "'
-        LIMIT 1
-    ";
-        Core::$db->query($query_string);
-        Core::$db->execute();
-        $change_password_field = "ecf_" . Core::$db->fetch()['client_field_id'];
-        Core::$db->query("
-            UPDATE {PREFIX}account_settings
-            SET setting_value = '" . $flag . "'
-            WHERE account_id = :account_id AND setting_name = :change_password_field
-        ");
-        Core::$db->bind("account_id", $account_id);
-        Core::$db->bind("change_password_field", $change_password_field);
-        Core::$db->execute();
+        $change_password_field_id = DBAccessLayer::getChangePasswordFieldDbColumnId();
+        $settings = array(
+            "ecf_{$change_password_field_id}" => $flag
+        );
+        Accounts::setAccountSettings($account_id, $settings);
     }
     
     public static function getForcePasswordChangeFlagForUser($client_id)
     {
         $client_info = Accounts::getAccountInfo($client_id);
-        Core::$db->query("
-            SELECT client_field_id
-            FROM {PREFIX}module_extended_client_fields
-            WHERE field_identifier = '" . DBAccessLayer::getChangePasswordFlagDbColumnName() ."'
-            LIMIT 1
-        ");
-        Core::$db->execute();
-        $change_password_field = "ecf_" . Core::$db->fetch()['client_field_id'];
+        $change_password_field = "ecf_" . DBAccessLayer::getChangePasswordFieldDbColumnId();
         Core::$db->query("
             SELECT setting_value
             FROM {PREFIX}account_settings
@@ -56,7 +37,6 @@ class DBAccessLayer
         Core::$db->bind("account_id", $client_info['account_id']);
         Core::$db->bind("change_password_field", $change_password_field);
         Core::$db->execute();
-
         
         if (Core::$db->numRows() == 0) {
             // the flag hasn't ever been set for this user
@@ -71,16 +51,10 @@ class DBAccessLayer
 
     public static function removeChangePasswordFlagColumnFromDatabase()
     {
-        Core::$db->query("
-            SELECT client_field_id
-            FROM {PREFIX}module_extended_client_fields
-            WHERE field_identifier = '" . DBAccessLayer::getChangePasswordFlagDbColumnName() . "'
-            LIMIT 1
-        ");
-        Core::$db->execute();
-        $field_id = Core::$db->fetch()['client_field_id'];
+        $field_id = DBAccessLayer::getChangePasswordFieldDbColumnId();
         
-        // those 3 lines below are a bit of magic because there is no good API in ECF to add a new field from outside of ECF
+        // those 3 lines below are a bit of magic
+        // there is no good API in ECF to add a new field from outside of ECF
         if(Modules::isValidModule("extended_client_fields"))
         {
             $ecf = Modules::instantiateModule("extended_client_fields");
@@ -110,7 +84,8 @@ class DBAccessLayer
                 "add" => "Add Field"
             );
 
-            // those 3 lines below are a bit of magic because there is no good API in ECF to add a new field from outside of ECF
+            // those 3 lines below are a bit of magic
+            // there is no good API in ECF to add a new field from outside of ECF
             if(Modules::isValidModule("extended_client_fields"))
             {
                 $ecf = Modules::instantiateModule("extended_client_fields");
@@ -121,15 +96,20 @@ class DBAccessLayer
 
     public static function doesChangePasswordEcfFieldExist()
     {
-        Core::$db->query("
-            SELECT field_identifier
-            FROM {PREFIX}module_extended_client_fields
-            WHERE field_identifier = '" . DBAccessLayer::getChangePasswordFlagDbColumnName() ."'
-            LIMIT 1
-        ");
-        Core::$db->execute();
-        if(Core::$db->numRows() == 0)
+        $field_id = DBAccessLayer::getChangePasswordFieldDbColumnId();
+        if($field_id == null)
             return false;
         return true;
+    }
+
+    private static function getChangePasswordFieldDbColumnId()
+    {
+        $query_string = "
+            SELECT client_field_id
+            FROM {PREFIX}module_extended_client_fields
+            WHERE field_identifier = '" . DBAccessLayer::getChangePasswordFlagDbColumnName() . "' LIMIT 1";
+        Core::$db->query($query_string);
+        Core::$db->execute();
+        return Core::$db->fetch()['client_field_id'];
     }
 }

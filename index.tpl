@@ -6,7 +6,6 @@
             <td class="title">
                 <a href="../../admin/modules">{$LANG.word_modules}</a>
                 <span class="joiner">&raquo;</span>
-                {$L.phrase_hello_world}
             </td>
         </tr>
     </table>

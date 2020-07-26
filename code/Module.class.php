@@ -7,6 +7,8 @@ use FormTools\Hooks;
 use FormTools\Modules;
 use FormTools\Accounts;
 use FormTools\General;
+use FormTools\Core;
+use Formtools\User;
 use FormTools\Modules\ExtendedClientFields\Fields;
 use FormTools\Modules\ForcePasswordChange\DBAccessLayer;
 
@@ -52,7 +54,11 @@ class Module extends FormToolsModule
         $new_password_hash = General::encode($params['info']['password']);
         if($new_password_hash != $params['info']['old_password_hash'])
         {
-           DBAccessLayer::setChangePasswordChangeFlagForUser($params['account_id'], ChangePasswordFlag::NO_CHANGE_NEEDED);
+           DBAccessLayer::setPasswordChangeFlagForUser($params['account_id'], ChangePasswordFlag::NO_CHANGE_NEEDED);
+        }
+        else if ($new_password_hash == $params['info']['old_password_hash']){
+            header("location: " . Core::getRootUrl() ."/clients/account/index.php?page=main&message=passwords_are_the_same_message");
+            exit;
         }
         return $params;
     }
@@ -70,7 +76,7 @@ class Module extends FormToolsModule
         {
             // redirect to Settings page if the user is required to change their password
             // use force_password_change_message as notification to the user that they are required to change the password
-            header("location: /formtools/clients/account/index.php?page=main&message=force_password_change_message");
+            header("location: " . Core::getRootUrl() ."/clients/account/index.php?page=main&message=force_password_change_message");
             exit;
         }
     }
@@ -86,12 +92,19 @@ class Module extends FormToolsModule
         $found = true;
         $g_success = true;
         $g_message= '';
-
+        $L = $this->getLangStrings();
+        
         if($params['flag'] == 'force_password_change_message')
         {
             $found = true;
             $g_success = false;
-            $g_message= 'some text';
+            $g_message= $L['force_password_change_message'];
+        }
+        else if($params['flag'] == 'passwords_are_the_same_message')
+        {
+            $found = true;
+            $g_success = false;
+            $g_message= $L['passwords_are_the_same_message'];
         }
         return array(
             "found" => $found,
@@ -100,30 +113,18 @@ class Module extends FormToolsModule
         );
     }
 
-	// /**
-	//  * A new hook for Accounts::sendPassword (end). 
-    //  * Force password change after sending a new password to a user who used "forgotten password" functionality.
-	//  * @param array $params the dictionary of parameters containing 'success', 'message' and 'info' fields
-	//  * @return array
-	//  */
-    // public function sendPasswordHook($params)
-    // {
-    //     $found = true;
-    //     $g_success = true;
-    //     $g_message= '';
-
-    //     if($params['flag'] == 'force_password_change_message')
-    //     {
-    //         $found = true;
-    //         $g_success = false;
-    //         $g_message= 'some text';
-    //     }
-    //     return array(
-    //         "found" => $found,
-    //         "g_success" => $g_success,
-    //         "g_message" => $g_message
-    //     );
-    // }
+	/**
+	 * A new hook for Accounts::sendPassword (end). 
+     * Force password change after sending a new password to a user who used the "forgotten password" functionality.
+	 * @param array $params
+	 * @return array
+	 */
+    public function afterSendPasswordHook($params)
+    {
+        $account = Accounts::getAccountByUsername($params['info']["username"]);
+        $account_id = $account['account_id'];
+        DBAccessLayer::setPasswordChangeFlagForUser($account_id, ChangePasswordFlag::FORCE_CHANGE);
+    }
 
 	/**
 	 * Checks if the 'change_password' flag ECF field already exists. If not, it creates it.
@@ -152,6 +153,7 @@ class Module extends FormToolsModule
         Hooks::registerHook("code", "force_password_change", "end", "FormTools\\Clients::updateClient", "afterUpdateClientHook", 50, true);
         Hooks::registerHook("code", "force_password_change", "main", "FormTools\\General::checkClientMayView", "checkClientMayViewHook", 50, true);
         Hooks::registerHook("code", "force_password_change", "end", "FormTools\\General::displayCustomPageMessage", "displayCustomPageMessageHook", 50, true);
+        Hooks::registerHook("code", "force_password_change", "end", "FormTools\\Accounts::sendPassword", "afterSendPasswordHook", 50, true);
         return array(true, "");
     }
 
