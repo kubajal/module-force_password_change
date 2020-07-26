@@ -18,3 +18,4 @@ $L["module_description"] = "Force your users to change their passwords.";
 
 // custom fields
 $L["phrase_hello_world"] = "asdf";
+$L["ecf_requirement_not_fulfiled"] = "Module you are trying to install depends on the Extended Client Fields module which appears to be missing or is disabled.";
