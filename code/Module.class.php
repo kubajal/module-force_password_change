@@ -5,11 +5,13 @@ namespace FormTools\Modules\ForcePasswordChange;
 use FormTools\Module as FormToolsModule;
 use FormTools\Hooks;
 use FormTools\Modules;
-use FormTools\Core;
 use FormTools\Accounts;
 use FormTools\General;
 use FormTools\Modules\ExtendedClientFields\Fields;
-use FormTools\Modules\ExtendedClientFields\Module as ECFModule;
+use FormTools\Modules\ForcePasswordChange\DBAccessLayer;
+
+require "DBAccessLayer.class.php";
+require "ChangePasswordFlag.class.php";
 
 class Module extends FormToolsModule
 {
@@ -22,8 +24,6 @@ class Module extends FormToolsModule
     protected $date = "2020-07-26";
     protected $originLanguage = "en_us";
 
-    private $dbColumn = 'force_change_password';
-
     protected $nav = array(
         "module_name" => array("index.php", false)
     );
@@ -34,7 +34,7 @@ class Module extends FormToolsModule
 	 * @param array $params the dictionary of parameters containing 'account_id' field
 	 * @return array
 	 */
-    public function beforeUpdateClient($params)
+    public function beforeUpdateClientHook($params)
     {
         $client_info = Accounts::getAccountInfo($params['account_id']);
         $params['info']['old_password_hash'] = $client_info['password'];
@@ -47,28 +47,12 @@ class Module extends FormToolsModule
 	 * @param array $params the dictionary of parameters containing 'password', 'old_password_hash', 'account_id' fields
 	 * @return array
 	 */
-    public function afterUpdateClient($params)
+    public function afterUpdateClientHook($params)
     {
         $new_password_hash = General::encode($params['info']['password']);
         if($new_password_hash != $params['info']['old_password_hash'])
         {
-            $db = Core::$db;
-            $db->query("
-                SELECT client_field_id
-                FROM {PREFIX}module_extended_client_fields
-                WHERE field_identifier = 'zmien_haslo'
-                LIMIT 1
-            ");
-            $db->execute();
-            $change_password_field = "ecf_" . $db->fetch()['client_field_id'];
-            $db->query("
-                UPDATE {PREFIX}account_settings
-                SET setting_value = 'no'
-                WHERE account_id = :account_id AND setting_name = :change_password_field
-            ");
-            $db->bind("account_id", $params['account_id']);
-            $db->bind("change_password_field", $change_password_field);
-            $db->execute();
+           DBAccessLayer::setChangePasswordChangeFlagForUser($params['account_id'], ChangePasswordFlag::NO_CHANGE_NEEDED);
         }
         return $params;
     }
@@ -79,33 +63,14 @@ class Module extends FormToolsModule
 	 * @param array $params the dictionary of parameters containing 'client_id' field
 	 * @return array
 	 */
-    public function checkClientMayView($params)
+    public function checkClientMayViewHook($params)
     {
-        $client_info = Accounts::getAccountInfo($params['client_id']);
-        $db = Core::$db;
-        $db->query("
-            SELECT client_field_id
-            FROM {PREFIX}module_extended_client_fields
-            WHERE field_identifier = '" . $this->dbColumn ."'
-            LIMIT 1
-        ");
-        $db->execute();
-        $change_password_field = "ecf_" . $db->fetch()['client_field_id'];
-        $db->query("
-            SELECT setting_value
-            FROM {PREFIX}account_settings
-            WHERE account_id = :account_id AND setting_name = :change_password_field
-            LIMIT 1
-        ");
-        $db->bind("account_id", $client_info['account_id']);
-        $db->bind("change_password_field", $change_password_field);
-        $db->execute();
-
-        $fetched = $db->fetch();
-
-        if($fetched['setting_value'] == 'yes')
+        $flag = DBAccessLayer::getForcePasswordChangeFlagForUser($params['client_id']);
+        if($flag == ChangePasswordFlag::FORCE_CHANGE)
         {
-            header("location: /formtools/clients/account/index.php?page=main&message=force_password_change");
+            // redirect to Settings page if the user is required to change their password
+            // use force_password_change_message as notification to the user that they are required to change the password
+            header("location: /formtools/clients/account/index.php?page=main&message=force_password_change_message");
             exit;
         }
     }
@@ -116,13 +81,13 @@ class Module extends FormToolsModule
 	 * @param array $params the dictionary of parameters containing 'flag' field
 	 * @return array
 	 */
-    public function displayCustomPageMessage($params)
+    public function displayCustomPageMessageHook($params)
     {
         $found = true;
         $g_success = true;
         $g_message= '';
 
-        if($params['flag'] == 'force_password_change')
+        if($params['flag'] == 'force_password_change_message')
         {
             $found = true;
             $g_success = false;
@@ -135,79 +100,43 @@ class Module extends FormToolsModule
         );
     }
 
+	// /**
+	//  * A new hook for Accounts::sendPassword (end). 
+    //  * Force password change after sending a new password to a user who used "forgotten password" functionality.
+	//  * @param array $params the dictionary of parameters containing 'success', 'message' and 'info' fields
+	//  * @return array
+	//  */
+    // public function sendPasswordHook($params)
+    // {
+    //     $found = true;
+    //     $g_success = true;
+    //     $g_message= '';
+
+    //     if($params['flag'] == 'force_password_change_message')
+    //     {
+    //         $found = true;
+    //         $g_success = false;
+    //         $g_message= 'some text';
+    //     }
+    //     return array(
+    //         "found" => $found,
+    //         "g_success" => $g_success,
+    //         "g_message" => $g_message
+    //     );
+    // }
 
 	/**
 	 * Checks if the 'change_password' flag ECF field already exists. If not, it creates it.
 	 */
-    function addColumnToTheDatabse()
+    function addChangePasswordFlagColumnToDatabase()
     {
-        $db = Core::$db;
-        $db->query("
-            SELECT field_identifier
-            FROM {PREFIX}module_extended_client_fields
-            WHERE field_identifier = '" . $this->dbColumn ."'
-            LIMIT 1
-        ");
-        $db->execute();
-        if ($db->numRows() == 0) {
-            // we need to create a new ECF field (check Fields::addField($info, $L) in ECF for more info how to call it)
-            $info = array(
-                'num_rows' => "2",
-                "template_hook" => "edit_client_main_top",
-                "admin_only" => "yes",
-                "field_label" => "Force password change flag",
-                "field_type" => "radios",
-                "field_identifier" => $this->dbColumn,
-                "default_value" => "yes",
-                "is_required" => "yes",
-                "error_string" => "",
-                "field_orientation" => "horizontal",
-                "option_list_id" => "",
-                "option_source" => "custom_list",
-                "field_option_text_1" => "yes",
-                "field_option_text_2" => "no",
-                "add" => "Add Field"
-            );
-
-            // those 3 lines below are a bit of magic because there is no good API in ECF to add a new field from outside of ECF
-            if(Modules::isValidModule("extended_client_fields"))
-            {
-                $ecf = Modules::instantiateModule("extended_client_fields");
-                $L_for_ecf = $ecf->getLangStrings();
-                Fields::addField($info, $L_for_ecf);
-            }
+        if (!DBAccessLayer::doesChangePasswordEcfFieldExist()) {
+            DBAccessLayer::addChangePasswordFlagColumnToDatabase();
         }
         else {
             // do field $dbColumn already exists (we assume that both 'yes' and 'no' option fields associated with it exist too)
             // do nothing (todo: check that option fields exist...)
         }
-    }
-
-    function removeColumnFromDatabase()
-    {
-        $db = Core::$db;
-        $db->query("
-            SELECT client_field_id
-            FROM {PREFIX}module_extended_client_fields
-            WHERE field_identifier = '" . $this->dbColumn . "'
-            LIMIT 1
-        ");
-        $db->execute();
-        $field_id = $db->fetch()['client_field_id'];
-        
-        $db->query("
-            DELETE
-            FROM {PREFIX}module_extended_client_fields
-            WHERE client_field_id = '" . $field_id . "'
-        ");
-        $db->execute();
-        
-        $db->query("
-            DELETE
-            FROM {PREFIX}module_extended_client_field_options
-            WHERE client_field_id = '" . $field_id . "'
-        ");
-        $db->execute();
     }
     
     public function install($module_id) {
@@ -217,18 +146,18 @@ class Module extends FormToolsModule
             return array(false, $L["ecf_requirement_not_fulfiled"]);
         }
 
-        $this->addColumnToTheDatabse();
+        $this->addChangePasswordFlagColumnToDatabase();
 
-        Hooks::registerHook("code", "force_password_change", "start", "FormTools\\Clients::updateClient", "beforeUpdateClient", 50, true);
-        Hooks::registerHook("code", "force_password_change", "end", "FormTools\\Clients::updateClient", "afterUpdateClient", 50, true);
-        Hooks::registerHook("code", "force_password_change", "main", "FormTools\\General::checkClientMayView", "checkClientMayView", 50, true);
-        Hooks::registerHook("code", "force_password_change", "end", "FormTools\\General::displayCustomPageMessage", "displayCustomPageMessage", 50, true);
+        Hooks::registerHook("code", "force_password_change", "start", "FormTools\\Clients::updateClient", "beforeUpdateClientHook", 50, true);
+        Hooks::registerHook("code", "force_password_change", "end", "FormTools\\Clients::updateClient", "afterUpdateClientHook", 50, true);
+        Hooks::registerHook("code", "force_password_change", "main", "FormTools\\General::checkClientMayView", "checkClientMayViewHook", 50, true);
+        Hooks::registerHook("code", "force_password_change", "end", "FormTools\\General::displayCustomPageMessage", "displayCustomPageMessageHook", 50, true);
         return array(true, "");
     }
 
     public function uninstall($module_id) {
         Hooks::unregisterModuleHooks("force_password_change");
-        $this->removeColumnFromDatabase();
+        DBAccessLayer::removeChangePasswordFlagColumnFromDatabase();
         return array(true, "");
     }
 }
