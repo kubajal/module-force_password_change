@@ -1,12 +1,14 @@
 ## Force Password Change module
 
-This module gives administrators a new functionality to block users from viewing submissions by forcing them to change their passwords beforehand. The aim is to have users use custom passwords, not the ones sent by the system or by the admin.
+This module gives administrators a new functionality to block users from viewing submissions by forcing them to change their passwords beforehand. The aims are:
+1) to be able to force your Formtools clients to change their passwords at any time.
+2) to have users use custom passwords, not the ones sent by the system or by the admin,
 
 ### Dependencies
 
-This module depends on the _Extended Client Fields_ module which you can download at [Formtools website](https://docs.formtools.org/modules/). _Extended Client Fields_ must remain enabled at all times in order for the _Force Password Change_ module to work.
+This module depends on the _Extended Client Fields_ module which you can download at [Formtools website](https://docs.formtools.org/modules/). _Extended Client Fields_ must remain enabled at all times in order for the _Force Password Change_ module to work. This dependency will be gone in the course of time.
 
-Tested on:
+For now, this module has been tested on:
 - Formtools v3.0.0
 - Extended Client Fields v2.1.0
 
@@ -28,6 +30,16 @@ Use case no. 1:
 
 Use case no. 2:
 ![Use case 2](flow2.png)
+
+### Notifications for clients
+
+See [lang/en_us.php](https://github.com/kubajal/module-force_password_change/blob/master/lang/en_us.php) to change notifications for clients.
+
+### To do
+
+1. [automatic password expiry](https://github.com/kubajal/module-force_password_change/milestone/2)
+2. [adding "Settings" tab on module's subpage and getting rid of dependency on Extended Client Fields](https://github.com/kubajal/module-force_password_change/milestone/1)
+3. [customizing message per client](https://github.com/kubajal/module-force_password_change/milestone/3)
 
 ### Reporting bugs
 
