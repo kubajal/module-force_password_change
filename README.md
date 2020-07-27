@@ -4,7 +4,7 @@ This module gives administrators a new functionality to block users from viewing
 1) to be able to force your Formtools clients to change their passwords at any time.
 2) to have users use custom passwords, not the ones sent by the system or by the admin.
 
-**This module is still under development**. Feel free to comment & request features using the [Issues tab](https://github.com/kubajal/module-force_password_change/issues) or per e-mail: kuba.jalowiec@protonmail.com.
+**This module is still under development**. Feel free to comment & request features using the [Issues tab](https://github.com/kubajal/module-force_password_change/issues) or per e-mail: kuba.jalowiec@protonmail.com. I invite anyone who is interested in development of such a functionality to test this plugin out (and report any bugs if found).
 
 ### Dependencies
 
