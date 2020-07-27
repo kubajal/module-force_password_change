@@ -83,7 +83,7 @@ class Module extends FormToolsModule
     
 	/**
 	 * A new hook for General::displayCustomPageMessage. 
-     * Checks if the message to be displayed is force_password_change.
+     * Checks if the message to be displayed is force_password_change_message or passwords_are_the_same_message.
 	 * @param array $params the dictionary of parameters containing 'flag' field
 	 * @return array
 	 */
@@ -135,8 +135,9 @@ class Module extends FormToolsModule
             DBAccessLayer::addChangePasswordFlagColumnToDatabase();
         }
         else {
-            // do field $dbColumn already exists (we assume that both 'yes' and 'no' option fields associated with it exist too)
-            // do nothing (todo: check that option fields exist...)
+            // do field $dbColumn already exists (we assume that both ChangePasswordFlag::FORCE_CHANGE 
+            // and ChangePasswordFlag::NO_CHANGE_NEEDED option fields associated with it exist too)
+            // do nothing (todo: check that option fields actaully exist...)
         }
     }
     
