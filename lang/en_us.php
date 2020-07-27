@@ -3,7 +3,7 @@
 $L = array();
 
 // required fields
-$L["module_name"] = "Force password change";
+$L["module_name"] = "Force Password Change";
 $L["module_description"] = "Force your users to change their passwords. See more in the <b><a href=\"https://github.com/kubajal/module-force_password_change\"> git repo </a></b>.";
 
 // custom fields
