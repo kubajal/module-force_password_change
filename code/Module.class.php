@@ -34,6 +34,7 @@ use FormTools\Modules\ForcePasswordChange\DBAccessLayer;
 
 require "DBAccessLayer.class.php";
 require "ChangePasswordFlag.class.php";
+require "PasswordExpiryDate.class.php";
 
 class Module extends FormToolsModule
 {
@@ -149,16 +150,49 @@ class Module extends FormToolsModule
 	/**
 	 * Checks if the 'change_password' flag ECF field already exists. If not, it creates it.
 	 */
-    function addChangePasswordFlagColumnToDatabase()
+    function addNewDbColumns()
     {
-        if (!DBAccessLayer::doesChangePasswordEcfFieldExist()) {
-            DBAccessLayer::addChangePasswordFlagColumnToDatabase();
+        if (!DBAccessLayer::doesEcfFieldExist(DBAccessLayer::getChangePasswordFlagDbColumnName())) {
+            DBAccessLayer::addNewDbColumn(array(
+                'num_rows' => "2",
+                "template_hook" => "edit_client_main_top",
+                "admin_only" => "yes",
+                "field_label" => "Force password change flag",
+                "field_type" => "radios",
+                "field_identifier" => DBAccessLayer::getChangePasswordFlagDbColumnName(),
+                "default_value" => ChangePasswordFlag::getDefaultChangePasswordFlag(),
+                "is_required" => "yes",
+                "error_string" => "",
+                "field_orientation" => "horizontal",
+                "option_list_id" => "",
+                "option_source" => "custom_list",
+                "field_option_text_1" => ChangePasswordFlag::FORCE_CHANGE,
+                "field_option_text_2" => ChangePasswordFlag::NO_CHANGE_NEEDED,
+                "add" => "Add Field"
+            ));
         }
         else {
             // do field $dbColumn already exists (we assume that both ChangePasswordFlag::FORCE_CHANGE 
             // and ChangePasswordFlag::NO_CHANGE_NEEDED option fields associated with it exist too)
-            // do nothing (todo: check that option fields actaully exist...)
+            // do nothing (todo: check that option fields actually exist...)
         }
+        if (!DBAccessLayer::doesEcfFieldExist(DBAccessLayer::getDateExpiryDbColumnName())) {
+            DBAccessLayer::addNewDbColumn(array(
+                'num_rows' => "1",
+                "template_hook" => "edit_client_main_top",
+                "admin_only" => "yes",
+                "field_label" => "Password expiry date",
+                "field_type" => "textbox",
+                "field_identifier" => DBAccessLayer::getDateExpiryDbColumnName(),
+                "default_value" => PasswordExpiryDate::getDefaultExpiryDate(),
+                "is_required" => "yes",
+                "error_string" => "",
+                "option_source" => "",
+                "field_orientation" => "horizontal",
+                "add" => "Add Field"
+            ));
+        }
+        
     }
     
     public function install($module_id) {
@@ -168,7 +202,7 @@ class Module extends FormToolsModule
             return array(false, $L["ecf_requirement_not_fulfiled"]);
         }
 
-        $this->addChangePasswordFlagColumnToDatabase();
+        $this->addNewDbColumns();
 
         Hooks::registerHook("code", "force_password_change", "start", "FormTools\\Clients::updateClient", "beforeUpdateClientHook", 50, true);
         Hooks::registerHook("code", "force_password_change", "end", "FormTools\\Clients::updateClient", "afterUpdateClientHook", 50, true);
@@ -180,7 +214,7 @@ class Module extends FormToolsModule
 
     public function uninstall($module_id) {
         Hooks::unregisterModuleHooks("force_password_change");
-        DBAccessLayer::removeChangePasswordFlagColumnFromDatabase();
+        DBAccessLayer::deleteDbColumns();
         return array(true, "");
     }
 }
