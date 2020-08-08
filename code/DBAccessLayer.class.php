@@ -29,29 +29,20 @@ use FormTools\Modules\ExtendedClientFields\Fields;
 use FormTools\Modules;
 
 class DBAccessLayer 
-{
-    public static function getChangePasswordFlagDbColumnName()
+{    
+    public static function setPasswordExpiryFlagForUser($account_id, $flag)
     {
-        return 'force_change_password';
-    }
-    public static function getDateExpiryDbColumnName()
-    {
-        return 'password_expiry_date';
-    }
-    
-    public static function setPasswordChangeFlagForUser($account_id, $flag)
-    {
-        $change_password_field_id = DBAccessLayer::getEcfColumnId();
+        $change_password_field_id = DBAccessLayer::getEcfColumnId(PasswordExpiryFlag::getPasswordExpiryFlagDbColumnName());
         $settings = array(
             "ecf_{$change_password_field_id}" => $flag
         );
         Accounts::setAccountSettings($account_id, $settings);
     }
     
-    public static function getForcePasswordChangeFlagForUser($client_id)
+    public static function getPasswordExpiryFlagForUser($client_id)
     {
         $client_info = Accounts::getAccountInfo($client_id);
-        $change_password_field = "ecf_" . DBAccessLayer::getEcfColumnId();
+        $change_password_field = "ecf_" . DBAccessLayer::getEcfColumnId(PasswordExpiryFlag::getPasswordExpiryFlagDbColumnName());
         Core::$db->query("
             SELECT setting_value
             FROM {PREFIX}account_settings
@@ -65,7 +56,7 @@ class DBAccessLayer
         if (Core::$db->numRows() == 0) {
             // the flag hasn't ever been set for this user
             // return default value
-            return ChangePasswordFlag::getDefaultChangePasswordFlag();
+            return PasswordExpiryFlag::getDefaultPasswordExpiryFlag();
         }
 
         $fetched = Core::$db->fetch();
@@ -76,8 +67,8 @@ class DBAccessLayer
     public static function deleteDbColumns()
     {
         $field_to_delete = array(
-            DBAccessLayer::getChangePasswordFlagDbColumnName(),
-            DBAccessLayer::getDateExpiryDbColumnName()
+            PasswordExpiryFlag::getPasswordExpiryFlagDbColumnName(),
+            PasswordExpiryDate::getDateExpiryDbColumnName()
         );
         foreach ($field_to_delete as $field_name)
         {

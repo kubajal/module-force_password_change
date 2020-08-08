@@ -33,7 +33,7 @@ use FormTools\Modules\ExtendedClientFields\Fields;
 use FormTools\Modules\ForcePasswordChange\DBAccessLayer;
 
 require "DBAccessLayer.class.php";
-require "ChangePasswordFlag.class.php";
+require "PasswordExpiryFlag.class.php";
 require "PasswordExpiryDate.class.php";
 
 class Module extends FormToolsModule
@@ -75,7 +75,7 @@ class Module extends FormToolsModule
         $new_password_hash = General::encode($params['info']['password']);
         if($new_password_hash != $params['info']['old_password_hash'])
         {
-           DBAccessLayer::setPasswordChangeFlagForUser($params['account_id'], ChangePasswordFlag::NO_CHANGE_NEEDED);
+           DBAccessLayer::setPasswordExpiryFlagForUser($params['account_id'], PasswordExpiryFlag::NO_EXPIRY);
         }
         else if ($new_password_hash == $params['info']['old_password_hash']){
             header("location: " . Core::getRootUrl() ."/clients/account/index.php?page=main&message=passwords_are_the_same_message");
@@ -92,8 +92,8 @@ class Module extends FormToolsModule
 	 */
     public function checkClientMayViewHook($params)
     {
-        $flag = DBAccessLayer::getForcePasswordChangeFlagForUser($params['client_id']);
-        if($flag == ChangePasswordFlag::FORCE_CHANGE)
+        $flag = DBAccessLayer::getPasswordExpiryFlagForUser($params['client_id']);
+        if($flag == PasswordExpiryFlag::SOFT_EXPIRY)
         {
             // redirect to Settings page if the user is required to change their password
             // use force_password_change_message as notification to the user that they are required to change the password
@@ -144,7 +144,7 @@ class Module extends FormToolsModule
     {
         $account = Accounts::getAccountByUsername($params['info']["username"]);
         $account_id = $account['account_id'];
-        DBAccessLayer::setPasswordChangeFlagForUser($account_id, ChangePasswordFlag::FORCE_CHANGE);
+        DBAccessLayer::setPasswordExpiryFlagForUser($account_id, PasswordExpiryFlag::SOFT_EXPIRY);
     }
 
 	/**
@@ -152,38 +152,39 @@ class Module extends FormToolsModule
 	 */
     function addNewDbColumns()
     {
-        if (!DBAccessLayer::doesEcfFieldExist(DBAccessLayer::getChangePasswordFlagDbColumnName())) {
+        if (!DBAccessLayer::doesEcfFieldExist(PasswordExpiryFlag::getPasswordExpiryFlagDbColumnName())) {
             DBAccessLayer::addNewDbColumn(array(
-                'num_rows' => "2",
+                'num_rows' => "3",
                 "template_hook" => "edit_client_main_top",
                 "admin_only" => "yes",
                 "field_label" => "Force password change flag",
                 "field_type" => "radios",
-                "field_identifier" => DBAccessLayer::getChangePasswordFlagDbColumnName(),
-                "default_value" => ChangePasswordFlag::getDefaultChangePasswordFlag(),
+                "field_identifier" => PasswordExpiryFlag::getPasswordExpiryFlagDbColumnName(),
+                "default_value" => PasswordExpiryFlag::getDefaultPasswordExpiryFlag(),
                 "is_required" => "yes",
                 "error_string" => "",
                 "field_orientation" => "horizontal",
                 "option_list_id" => "",
                 "option_source" => "custom_list",
-                "field_option_text_1" => ChangePasswordFlag::FORCE_CHANGE,
-                "field_option_text_2" => ChangePasswordFlag::NO_CHANGE_NEEDED,
+                "field_option_text_1" => PasswordExpiryFlag::NO_EXPIRY,
+                "field_option_text_2" => PasswordExpiryFlag::SOFT_EXPIRY,
+                "field_option_text_3" => PasswordExpiryFlag::HARD_EXPIRY,
                 "add" => "Add Field"
             ));
         }
         else {
-            // do field $dbColumn already exists (we assume that both ChangePasswordFlag::FORCE_CHANGE 
-            // and ChangePasswordFlag::NO_CHANGE_NEEDED option fields associated with it exist too)
+            // do field $dbColumn already exists (we assume that both PasswordExpiryFlag::SOFT_EXPIRY 
+            // and PasswordExpiryFlag::NO_EXPIRY option fields associated with it exist too)
             // do nothing (todo: check that option fields actually exist...)
         }
-        if (!DBAccessLayer::doesEcfFieldExist(DBAccessLayer::getDateExpiryDbColumnName())) {
+        if (!DBAccessLayer::doesEcfFieldExist(PasswordExpiryDate::getDateExpiryDbColumnName())) {
             DBAccessLayer::addNewDbColumn(array(
                 'num_rows' => "1",
                 "template_hook" => "edit_client_main_top",
                 "admin_only" => "yes",
                 "field_label" => "Password expiry date",
                 "field_type" => "textbox",
-                "field_identifier" => DBAccessLayer::getDateExpiryDbColumnName(),
+                "field_identifier" => PasswordExpiryDate::getDateExpiryDbColumnName(),
                 "default_value" => PasswordExpiryDate::getDefaultExpiryDate(),
                 "is_required" => "yes",
                 "error_string" => "",
@@ -192,7 +193,6 @@ class Module extends FormToolsModule
                 "add" => "Add Field"
             ));
         }
-        
     }
     
     public function install($module_id) {

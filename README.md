@@ -16,7 +16,7 @@ For now, this module has been tested on:
 
 ### New field in the client panel
 
-This module adds the *force_change_password* in the client panel with two options: *force_change* and *no_change_needed*. Setting that field to the first option forces the given client to change their password on the next attempt to view any submissions assigned to them. The second option has no impact on the client and is the default value for the new field.
+This module adds the *force_change_password* in the client panel with two options: *force_change* and *NO_EXPIRY*. Setting that field to the first option forces the given client to change their password on the next attempt to view any submissions assigned to them. The second option has no impact on the client and is the default value for the new field.
 
 ### Use-cases
 

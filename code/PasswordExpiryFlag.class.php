@@ -22,25 +22,18 @@ along with Force Password Change.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace FormTools\Modules\ForcePasswordChange;
 
-abstract class PasswordExpiryDate {
-    const NEVER = 'never';
+abstract class PasswordExpiryFlag {
+    const SOFT_EXPIRY = 'soft_expiry';
+    const HARD_EXPIRY = 'hard_expiry';
+    const NO_EXPIRY = 'no_expiry';
     
-    public static function getDateExpiryDbColumnName()
+    public static function getPasswordExpiryFlagDbColumnName()
     {
-        return 'password_expiry_date';
+        return 'password_expiry_flag';
     }
 
-    public static function getDefaultExpiryDate()
+    public static function getDefaultPasswordExpiryFlag()
     {
-        return PasswordExpiryDate::NEVER;
-    }
-    public static function today()
-    {
-        return date("Y/m/d");
-    }
-    public static function addDays($date,$days){
-
-        $date = strtotime("+".$days." days", strtotime($date));
-        return  date("Y-m-d", $date);
+        return PasswordExpiryFlag::NO_EXPIRY;
     }
 }
